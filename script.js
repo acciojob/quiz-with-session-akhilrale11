@@ -1,28 +1,62 @@
-() => {
-  cy.visit(baseUrl + "/main.html");  // Visit the quiz page
+const questions = [
+    { id: 1, question: "What is the capital of France?", options: ["Paris", "London", "Berlin", "Madrid"], answer: 0 },
+    { id: 2, question: "What is 2 + 2?", options: ["3", "4", "5", "6"], answer: 1 },
+    { id: 3, question: "Which language is used for web development?", options: ["Python", "Java", "JavaScript", "C#"], answer: 2 },
+    { id: 4, question: "What is the largest planet in the solar system?", options: ["Earth", "Mars", "Jupiter", "Saturn"], answer: 2 },
+    { id: 5, question: "Who wrote 'Romeo and Juliet'?", options: ["Shakespeare", "Dickens", "Tolkien", "Hemingway"], answer: 0 },
+];
 
-  // Wait for questions container to be visible and ensure it exists
-  cy.get('div#questions', { timeout: 10000 }).should('exist');  // Timeout after 10 seconds if not found
+const quizContainer = document.getElementById("quiz-container");
+const submitBtn = document.getElementById("submit-btn");
+const result = document.getElementById("result");
 
-  // Ensure there are 5 questions
-  cy.get("div#questions").children("div").should("have.length", 5);  // Check number of questions
+// Load progress from session storage
+const savedProgress = JSON.parse(sessionStorage.getItem("progress")) || {};
 
-  // Loop through questions and check each question's options
-  cy.get("div#questions > div").each(($ele, index) => {
-    // Verify the question text
-    expect($ele.text().split("?")[0] + "?").to.equal(questions[index].question); 
-    
-    cy.wrap($ele).within(() => {
-      // Verify each choice inside the current question
-      cy.get("input").each((input, i) => {
-        expect(input.attr("value")).to.equal(questions[index].choices[i]);
-      });
+// Render the quiz
+questions.forEach((q, index) => {
+    const questionDiv = document.createElement("div");
+    questionDiv.className = "question";
+
+    const questionText = document.createElement("p");
+    questionText.textContent = `${index + 1}. ${q.question}`;
+    questionDiv.appendChild(questionText);
+
+    const optionsDiv = document.createElement("div");
+    optionsDiv.className = "options";
+
+    q.options.forEach((option, optIndex) => {
+        const label = document.createElement("label");
+        const radio = document.createElement("input");
+        radio.type = "radio";
+        radio.name = `question-${q.id}`;
+        radio.value = optIndex;
+        radio.checked = savedProgress[q.id] === optIndex;
+
+        radio.addEventListener("change", () => {
+            savedProgress[q.id] = optIndex;
+            sessionStorage.setItem("progress", JSON.stringify(savedProgress));
+        });
+
+        label.appendChild(radio);
+        label.appendChild(document.createTextNode(option));
+        optionsDiv.appendChild(label);
+        optionsDiv.appendChild(document.createElement("br"));
     });
-  });
 
-  // Check if submit button exists
-  cy.get("button#submit").should('exist');  
+    questionDiv.appendChild(optionsDiv);
+    quizContainer.appendChild(questionDiv);
+});
 
-  // Check if the score div is empty initially
-  cy.get("div#score").should("be.empty");
-}
+// Handle submission
+submitBtn.addEventListener("click", () => {
+    let score = 0;
+    questions.forEach((q) => {
+        if (savedProgress[q.id] === q.answer) {
+            score++;
+        }
+    });
+
+    result.textContent = `Your score is ${score} out of 5.`;
+    localStorage.setItem("score", score);
+});
